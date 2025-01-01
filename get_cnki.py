@@ -103,6 +103,7 @@ def main():
             total_pages = 1
 
         # 循环处理每一页
+        selected_pages = 0
         for current_page in range(1, total_pages + 1):
             logging.info(f"正在处理第 {current_page} 页")
             try:
@@ -114,12 +115,57 @@ def main():
                 select_all_button.click()
                 logging.info(f"第 {current_page} 页全选成功")
                 random_sleep(0.5, 1)
+                selected_pages += 1
 
-                # 如果不是最后一页，点击“下一页”
+                # 如果选择数量达到10页，进行批量下载
+                if selected_pages == 10 or current_page == total_pages:
+                    try:
+                        logging.info("已选择10页，准备进行批量下载")
+                        batch_download_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "li.bulkdownload.export")))
+                        batch_download_button.click()
+                        logging.info("点击“批量下载”按钮成功")
+                        random_sleep(1, 3)
+                    except Exception as e:
+                        logging.error(f"无法点击“批量下载”按钮: {e}")
+                        driver.quit()
+                        return
+                    
+                    # 切换到弹出的下载窗口
+                    try:
+                        driver.switch_to.window(driver.window_handles[-1])
+                        logging.info("已切换到下载窗口")
+                        confirm_download_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "#btn-download-all")))
+                        confirm_download_button.click()
+                        logging.info("点击“确认下载”按钮，开始下载")
+                    except Exception as e:
+                        logging.error(f"在下载窗口操作时出现问题: {e}")
+                        driver.quit()
+                        return
+                    
+                    # 等待下载完成
+                    random_sleep(4, 5)
+
+                    # 切换回搜索结果页面
+                    driver.switch_to.window(driver.window_handles[0])
+                    logging.info("已切换回搜索结果页面")
+                    random_sleep(1, 2)
+
+                    # 清除所选项并重置计数
+                    try:
+                        clear_selection_button = wait.until(EC.element_to_be_clickable((By.XPATH, "//div[@class='checkcount']//a[@href='javascript:$(this).filenameClear();']")))
+                        clear_selection_button.click()
+                        logging.info("清除所选项成功")
+                        random_sleep(0.5, 1)
+                        selected_pages = 0
+                    except Exception as e:
+                        logging.error(f"无法清除所选项: {e}")
+                        driver.quit()
+                        return
+
+                # 点击“下一页”
                 if current_page < total_pages:
                     next_page_button = wait.until(EC.element_to_be_clickable((By.ID, "PageNext")))
                     driver.execute_script("arguments[0].scrollIntoView(true);", next_page_button)
-                    random_sleep(0.5, 1)
                     next_page_button.click()
                     logging.info("点击“下一页”按钮")
                     # 等待页面加载
